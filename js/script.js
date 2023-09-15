@@ -14,13 +14,19 @@ class Player {
     this.height = 100;
     this.x = this.game.width * 0.5 - this.width * 0.5;
     this.y = this.game.height - this.height;
-    this.speed = 5;
+    this.speed = 10;
   }
   draw(context) {
     context.fillRect(this.x, this.y, this.width, this.height);
   }
   update() {
-    this.x += this.speed;
+    // horizontal movements
+    if (this.game.keys.indexOf("ArrowLeft") > -1) this.x -= this.speed;
+    if (this.game.keys.indexOf("ArrowRight") > -1) this.x += this.speed;
+    // horizontal boundaries
+    if (this.x < 0) this.x = 0;
+    else if (this.x > this.game.width - this.width)
+      this.x = this.game.width - this.width; // player cant go outside
   }
 }
 class Projectile {}
@@ -30,7 +36,20 @@ class Game {
     this.canvas = canvas;
     this.width = this.canvas.width;
     this.height = this.canvas.height;
+    this.keys = [];
     this.player = new Player(this);
+
+    // event listeners
+    window.addEventListener("keydown", (e) => {
+      if (this.keys.indexOf(e.key) === -1) this.keys.push(e.key); // indexOf() return the first index at which given element can be found in the array. It returns -1 if the element is not present
+      console.log(this.keys);
+    });
+
+    window.addEventListener("keyup", (e) => {
+      const index = this.keys.indexOf(e.key);
+      if (index > -1) this.keys.splice(index, 1); // splice() method can be used to replace or remove existing elements from an array
+      console.log(this.keys);
+    });
   }
   render(context) {
     this.player.draw(context);
@@ -44,11 +63,11 @@ window.addEventListener("load", function () {
   const ctx = canvas.getContext("2d"); // ctx from canvas for context
   // we are setting both "element" size and "drawing surface" size
   // "html canvas" has 2 sizes, they need to be set to the same value to prevent distortions
-  canvas.width = 600;
-  canvas.height = 800;
+  canvas.width = 500;
+  canvas.height = 700;
   const game = new Game(canvas);
   function animate() {
-    clearRect(0, 0, canvas.width, canvas.height); // to clear canvas animate
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // to clear canvas animate
     game.render(ctx);
     requestAnimationFrame(animate);
   }
