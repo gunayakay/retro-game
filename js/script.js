@@ -7,10 +7,36 @@
 // 4.Polymorphism
 //
 
-class Player {}
+class Player {
+  constructor(game) {
+    this.game = game;
+    this.width = 100;
+    this.height = 100;
+    this.x = this.game.width * 0.5 - this.width * 0.5;
+    this.y = this.game.height - this.height;
+    this.speed = 5;
+  }
+  draw(context) {
+    context.fillRect(this.x, this.y, this.width, this.height);
+  }
+  update() {
+    this.x += this.speed;
+  }
+}
 class Projectile {}
 class Enemy {}
-class Game {}
+class Game {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.width = this.canvas.width;
+    this.height = this.canvas.height;
+    this.player = new Player(this);
+  }
+  render(context) {
+    this.player.draw(context);
+    this.player.update();
+  }
+}
 
 window.addEventListener("load", function () {
   // "load element" fires when the whole page has loaded including all dependent resources such as stylesheets, scripts, images and so on.
@@ -20,4 +46,11 @@ window.addEventListener("load", function () {
   // "html canvas" has 2 sizes, they need to be set to the same value to prevent distortions
   canvas.width = 600;
   canvas.height = 800;
+  const game = new Game(canvas);
+  function animate() {
+    clearRect(0, 0, canvas.width, canvas.height); // to clear canvas animate
+    game.render(ctx);
+    requestAnimationFrame(animate);
+  }
+  animate();
 });
