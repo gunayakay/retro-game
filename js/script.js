@@ -54,13 +54,12 @@ class Projectile {
       context.fillRect(this.x, this.y, this.width, this.height);
     }
   }
-  update(context) {
+  update() {
     if (!this.free) {
       this.y -= this.speed;
       if (this.y < 0 - this.height) this.reset();
     }
   }
-
   start(x, y) {
     this.x = x - this.width * 0.5;
     this.y = y;
@@ -79,6 +78,7 @@ class Enemy {
     this.y = 0;
     this.positionX = positionX;
     this.positionY = positionY;
+    this.markedForDeletion = false;
   }
   draw(context) {
     context.strokeRect(this.x, this.y, this.width, this.height);
@@ -86,6 +86,13 @@ class Enemy {
   update(x, y) {
     this.x = x + this.positionX;
     this.y = y + this.positionY;
+    // check collision enemies - projectiles
+    this.game.projectilePool.forEach((projectile) => {
+      if (!projectile.free && this.game.checkCollision(this, projectile)) {
+        this.markedForDeletion = true;
+        projectile.reset();
+      }
+    });
   }
 }
 class Wave {
@@ -113,6 +120,7 @@ class Wave {
       enemy.update(this.x, this.y);
       enemy.draw(context);
     });
+    this.enemies = this.enemies.filter((object) => !object.markedForDeletion); // array.filter() methods will create a copy of a given array and that filtered copy will contain just the elements that passed a certain condition
   }
   create() {
     for (let y = 0; y < this.game.rows; y++) {
@@ -136,12 +144,13 @@ class Game {
     this.numberOfProjectile = 10;
     this.createProjectiles();
 
-    this.columns = 3;
-    this.rows = 3;
+    this.columns = 5;
+    this.rows = 7;
     this.enemySize = 60;
-    this.waves = [];
 
+    this.waves = [];
     this.waves.push(new Wave(this));
+
     // event listeners
     window.addEventListener("keydown", (e) => {
       if (this.keys.indexOf(e.key) === -1) this.keys.push(e.key); // indexOf() return the first index at which given element can be found in the array. It returns -1 if the element is not present
@@ -177,6 +186,15 @@ class Game {
     for (let i = 0; i < this.projectilePool.length; i++) {
       if (this.projectilePool[i].free) return this.projectilePool[i];
     }
+  }
+  // collision detected between 2 rectangles
+  checkCollision(a, b) {
+    return (
+      a.x < b.x + b.width &&
+      a.x + a.width > b.x &&
+      a.y < b.y + b.height &&
+      a.y + a.height > b.y
+    );
   }
 }
 window.addEventListener("load", function () {
