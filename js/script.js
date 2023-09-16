@@ -5,7 +5,13 @@
 // 2.Abstraction
 // 3.Inheritance
 // 4.Polymorphism
-//
+
+// "Object Pool" is a creational desing patern
+// It allows us to avoid performance issues related to automatic
+// memory allocation and garbage collection process, that trigger
+// when we create and destroy large amount of Javascript objects.
+// "** Creational Design Patern" provide various object creation mechanism
+// which increase flexibility and reuse of existing code
 
 class Player {
   constructor(game) {
@@ -24,12 +30,46 @@ class Player {
     if (this.game.keys.indexOf("ArrowLeft") > -1) this.x -= this.speed;
     if (this.game.keys.indexOf("ArrowRight") > -1) this.x += this.speed;
     // horizontal boundaries
-    if (this.x < 0) this.x = 0;
-    else if (this.x > this.game.width - this.width)
-      this.x = this.game.width - this.width; // player cant go outside
+    if (this.x < -this.width * 0.5) this.x = this.width * 0.5;
+    else if (this.x > this.game.width - this.width * 0.5)
+      this.x = this.game.width - this.width * 0.5; // player cant go outsides
+  }
+  shoot(){
+   const projectile=this.game.getProjectile(); 
+   if(projectile) projectile.start(this.x + this.width * 0.5 ,this.y) //shoot from center
   }
 }
-class Projectile {}
+class Projectile {
+  constructor() { 
+    // to shoot bigger or more
+    this.width = 8;
+    this.height = 50;
+    this.x = 0;
+    this.y = 0;
+    this.speed = 20;
+    this.free = true;
+  }
+  draw(context) {
+    if (!this.free) {
+      context.fillRect(this.x, this.y, this.width, this.height);
+    }
+  }
+  update(context) {
+    if (!this.free) {
+      this.y -= this.speed;
+      if(this.y < 0 - this.height) this.reset()
+    }
+  }
+  
+  start(x,y) {
+    this.x = x - this.width * 0.5;
+    this.y = y;
+    this.free = false;
+  }
+  reset() {
+    this.free = true;
+  }
+}
 class Enemy {}
 class Game {
   constructor(canvas) {
@@ -39,10 +79,15 @@ class Game {
     this.keys = [];
     this.player = new Player(this);
 
+    this.projectilePool = [];
+    this.numberOfProjectile = 10;
+    this.createProjectiles();
+    console.log(this.projectilePool);
+
     // event listeners
     window.addEventListener("keydown", (e) => {
       if (this.keys.indexOf(e.key) === -1) this.keys.push(e.key); // indexOf() return the first index at which given element can be found in the array. It returns -1 if the element is not present
-      console.log(this.keys);
+      if(e.key === '1' ) this.player.shoot()
     });
 
     window.addEventListener("keyup", (e) => {
@@ -54,7 +99,23 @@ class Game {
   render(context) {
     this.player.draw(context);
     this.player.update();
+    this.projectilePool.forEach(projectile => {
+      projectile.update();
+      projectile.draw(context);
+    })
   }
+  // create projectile object pool
+  createProjectiles() {
+    for (let i = 0; i < this.numberOfProjectile; i++) {
+      this.projectilePool.push(new Projectile());
+    }
+  }
+  // get free projectile object from the pool
+  getProjectile(){
+    for (let i = 0; i < this.projectilePool.length; i++) {  
+      if(this.projectilePool[i].free) return this.projectilePool[i];
+  }
+
 }
 
 window.addEventListener("load", function () {
@@ -63,8 +124,8 @@ window.addEventListener("load", function () {
   const ctx = canvas.getContext("2d"); // ctx from canvas for context
   // we are setting both "element" size and "drawing surface" size
   // "html canvas" has 2 sizes, they need to be set to the same value to prevent distortions
-  canvas.width = 500;
-  canvas.height = 700;
+  canvas.width = 600;
+  canvas.height = 800;
   const game = new Game(canvas);
   function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // to clear canvas animate
