@@ -34,13 +34,13 @@ class Player {
     else if (this.x > this.game.width - this.width * 0.5)
       this.x = this.game.width - this.width * 0.5; // player cant go outsides
   }
-  shoot(){
-   const projectile=this.game.getProjectile(); 
-   if(projectile) projectile.start(this.x + this.width * 0.5 ,this.y) //shoot from center
+  shoot() {
+    const projectile = this.game.getProjectile();
+    if (projectile) projectile.start(this.x + this.width * 0.5, this.y); //shoot from center
   }
 }
 class Projectile {
-  constructor() { 
+  constructor() {
     // to shoot bigger or more
     this.width = 8;
     this.height = 50;
@@ -57,11 +57,11 @@ class Projectile {
   update(context) {
     if (!this.free) {
       this.y -= this.speed;
-      if(this.y < 0 - this.height) this.reset()
+      if (this.y < 0 - this.height) this.reset();
     }
   }
-  
-  start(x,y) {
+
+  start(x, y) {
     this.x = x - this.width * 0.5;
     this.y = y;
     this.free = false;
@@ -70,7 +70,60 @@ class Projectile {
     this.free = true;
   }
 }
-class Enemy {}
+class Enemy {
+  constructor(game, positionX, positionY) {
+    this.game = game;
+    this.width = this.game.enemySize;
+    this.height = this.game.enemySize;
+    this.x = 0;
+    this.y = 0;
+    this.positionX = positionX;
+    this.positionY = positionY;
+  }
+  draw(context) {
+    context.strokeRect(this.x, this.y, this.width, this.height);
+  }
+  update(x, y) {
+    this.x = x + this.positionX;
+    this.y = y + this.positionY;
+  }
+}
+class Wave {
+  constructor(game) {
+    this.game = game;
+    this.width = this.game.columns * this.game.enemySize;
+    this.height = this.game.rows * this.game.enemySize;
+    this.x = 0;
+    this.y = -this.height;
+    this.speedX = 3;
+    this.speedY = 0;
+    this.enemies = [];
+    this.create();
+  }
+  render(context) {
+    if (this.y < 0) this.y += 5;
+    this.speedY = 0;
+    if (this.x < 0 || this.x > this.game.width - this.width) {
+      this.speedX *= -1;
+      this.speedY = this.game.enemySize;
+    }
+    this.x += this.speedX;
+    this.y -= this.speedY;
+    this.enemies.forEach((enemy) => {
+      enemy.update(this.x, this.y);
+      enemy.draw(context);
+    });
+  }
+  create() {
+    for (let y = 0; y < this.game.rows; y++) {
+      for (let x = 0; x < this.game.columns; x++) {
+        let enemyX = x * this.game.enemySize;
+        let enemyY = y * this.game.enemySize;
+        this.enemies.push(new Enemy(this.game, enemyX, enemyY));
+      }
+    }
+  }
+}
 class Game {
   constructor(canvas) {
     this.canvas = canvas;
@@ -82,12 +135,17 @@ class Game {
     this.projectilePool = [];
     this.numberOfProjectile = 10;
     this.createProjectiles();
-    console.log(this.projectilePool);
 
+    this.columns = 3;
+    this.rows = 3;
+    this.enemySize = 60;
+    this.waves = [];
+
+    this.waves.push(new Wave(this));
     // event listeners
     window.addEventListener("keydown", (e) => {
       if (this.keys.indexOf(e.key) === -1) this.keys.push(e.key); // indexOf() return the first index at which given element can be found in the array. It returns -1 if the element is not present
-      if(e.key === '1' ) this.player.shoot()
+      if (e.key === "1") this.player.shoot();
     });
 
     window.addEventListener("keyup", (e) => {
@@ -99,10 +157,14 @@ class Game {
   render(context) {
     this.player.draw(context);
     this.player.update();
-    this.projectilePool.forEach(projectile => {
+    this.projectilePool.forEach((projectile) => {
       projectile.update();
       projectile.draw(context);
-    })
+    });
+
+    this.waves.forEach((wave) => {
+      wave.render(context);
+    });
   }
   // create projectile object pool
   createProjectiles() {
@@ -111,13 +173,12 @@ class Game {
     }
   }
   // get free projectile object from the pool
-  getProjectile(){
-    for (let i = 0; i < this.projectilePool.length; i++) {  
-      if(this.projectilePool[i].free) return this.projectilePool[i];
+  getProjectile() {
+    for (let i = 0; i < this.projectilePool.length; i++) {
+      if (this.projectilePool[i].free) return this.projectilePool[i];
+    }
   }
-
 }
-
 window.addEventListener("load", function () {
   // "load element" fires when the whole page has loaded including all dependent resources such as stylesheets, scripts, images and so on.
   const canvas = document.getElementById("canvas1");
@@ -126,6 +187,9 @@ window.addEventListener("load", function () {
   // "html canvas" has 2 sizes, they need to be set to the same value to prevent distortions
   canvas.width = 600;
   canvas.height = 800;
+  ctx.fillStyle = "white";
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 5;
   const game = new Game(canvas);
   function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // to clear canvas animate
