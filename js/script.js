@@ -21,6 +21,7 @@ class Player {
     this.x = this.game.width * 0.5 - this.width * 0.5;
     this.y = this.game.height - this.height;
     this.speed = 10;
+    this.lives = 3;
   }
   draw(context) {
     context.fillRect(this.x, this.y, this.width, this.height);
@@ -30,7 +31,7 @@ class Player {
     if (this.game.keys.indexOf("ArrowLeft") > -1) this.x -= this.speed;
     if (this.game.keys.indexOf("ArrowRight") > -1) this.x += this.speed;
     // horizontal boundaries
-    if (this.x < -this.width * 0.5) this.x = this.width * 0.5;
+    if (this.x < -this.width * 0.5) this.x = -this.width * 0.5;
     else if (this.x > this.game.width - this.width * 0.5)
       this.x = this.game.width - this.width * 0.5; // player cant go outsides
   }
@@ -43,7 +44,7 @@ class Projectile {
   constructor() {
     // to shoot bigger or more
     this.width = 8;
-    this.height = 50;
+    this.height = 40;
     this.x = 0;
     this.y = 0;
     this.speed = 20;
@@ -57,7 +58,7 @@ class Projectile {
   update() {
     if (!this.free) {
       this.y -= this.speed;
-      if (this.y < 0 - this.height) this.reset();
+      if (this.y < -this.height) this.reset();
     }
   }
   start(x, y) {
@@ -87,12 +88,25 @@ class Enemy {
     this.x = x + this.positionX;
     this.y = y + this.positionY;
     // check collision enemies - projectiles
-    this.game.projectilePool.forEach((projectile) => {
+    this.game.projectilesPool.forEach((projectile) => {
       if (!projectile.free && this.game.checkCollision(this, projectile)) {
         this.markedForDeletion = true;
         projectile.reset();
+        if (!this.game.gameOver) this.game.score++;
       }
     });
+    // check collision enemies - player
+    if (this.game.checkCollision(this, this.game.player)) {
+      this.markedForDeletion = true;
+      if (!this.game.gameOver && this.game.score > 0) this.game.score--;
+      this.game.lives--;
+      if (this.game.player.lives < 1) this.game.gameOver = true;
+    }
+    // lose condition
+    if (this.y + this.height > this.game.height) {
+      this.game.gameOver = true;
+      this.markedForDeletion = true;
+    }
   }
 }
 class Wave {
@@ -105,6 +119,7 @@ class Wave {
     this.speedX = 3;
     this.speedY = 0;
     this.enemies = [];
+    this.nextWaveTrigger = false;
     this.create();
   }
   render(context) {
@@ -115,7 +130,7 @@ class Wave {
       this.speedY = this.game.enemySize;
     }
     this.x += this.speedX;
-    this.y -= this.speedY;
+    this.y += this.speedY;
     this.enemies.forEach((enemy) => {
       enemy.update(this.x, this.y);
       enemy.draw(context);
@@ -140,17 +155,20 @@ class Game {
     this.keys = [];
     this.player = new Player(this);
 
-    this.projectilePool = [];
-    this.numberOfProjectile = 10;
+    this.projectilesPool = [];
+    this.numberOfProjectiles = 10;
     this.createProjectiles();
 
-    this.columns = 5;
-    this.rows = 7;
+    this.columns = 2;
+    this.rows = 12;
     this.enemySize = 60;
 
     this.waves = [];
     this.waves.push(new Wave(this));
+    this.waveCount = 1;
 
+    this.score = 0;
+    this.gameOver = false;
     // event listeners
     window.addEventListener("keydown", (e) => {
       if (this.keys.indexOf(e.key) === -1) this.keys.push(e.key); // indexOf() return the first index at which given element can be found in the array. It returns -1 if the element is not present
@@ -160,31 +178,36 @@ class Game {
     window.addEventListener("keyup", (e) => {
       const index = this.keys.indexOf(e.key);
       if (index > -1) this.keys.splice(index, 1); // splice() method can be used to replace or remove existing elements from an array
-      console.log(this.keys);
     });
   }
   render(context) {
+    this.drawStatusText(context);
     this.player.draw(context);
     this.player.update();
-    this.projectilePool.forEach((projectile) => {
+    this.projectilesPool.forEach((projectile) => {
       projectile.update();
       projectile.draw(context);
     });
-
     this.waves.forEach((wave) => {
       wave.render(context);
+      if (wave.enemies.length < 1 && !wave.nextWaveTrigger && !this.gameOver) {
+        this.newWave();
+        this.waveCount++;
+        wave.nextWaveTrigger = true;
+        this.player.lives++;
+      }
     });
   }
   // create projectile object pool
   createProjectiles() {
-    for (let i = 0; i < this.numberOfProjectile; i++) {
-      this.projectilePool.push(new Projectile());
+    for (let i = 0; i < this.numberOfProjectiles; i++) {
+      this.projectilesPool.push(new Projectile());
     }
   }
   // get free projectile object from the pool
   getProjectile() {
-    for (let i = 0; i < this.projectilePool.length; i++) {
-      if (this.projectilePool[i].free) return this.projectilePool[i];
+    for (let i = 0; i < this.projectilesPool.length; i++) {
+      if (this.projectilesPool[i].free) return this.projectilesPool[i];
     }
   }
   // collision detected between 2 rectangles
@@ -195,6 +218,42 @@ class Game {
       a.y < b.y + b.height &&
       a.y + a.height > b.y
     );
+  }
+  drawStatusText(context) {
+    context.save();
+    context.shadowOffsetX = 2;
+    context.shadowOffsetY = 2;
+    context.shadowColor = "black";
+    context.fillText("Score: " + this.score, 20, 40);
+    context.fillText("Waves: " + this.waveCount, 20, 80);
+    for (let i = 0; i < this.player.lives; i++) {
+      context.fillRect(20 + 10 * i, 100, 5, 20);
+    }
+
+    // context.fillText("Lives: " + this.lives, 20, 120);
+    if (this.gameOver) {
+      context.textAlign = "center";
+      context.font = "100px Impact";
+      context.fillText("GAME OVER!", this.width * 0.5, this.height * 0.5);
+      context.font = "20px Impact";
+      context.fillText(
+        "Press R to restart!",
+        this.width * 0.5,
+        this.height * 0.5 + 30
+      );
+    }
+    context.restore();
+  }
+  newWave() {
+    if (
+      Math.random() < 0.5 &&
+      this.columns * this.enemySize < this.width * 0.8
+    ) {
+      this.columns++;
+    } else if (this.rows * this.enemySize < this.width * 0.6) {
+      this.rows++;
+    }
+    this.waves.push(new Wave(this));
   }
 }
 window.addEventListener("load", function () {
@@ -208,7 +267,10 @@ window.addEventListener("load", function () {
   ctx.fillStyle = "white";
   ctx.strokeStyle = "white";
   ctx.lineWidth = 5;
+  ctx.font = "30px Impact";
+
   const game = new Game(canvas);
+
   function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // to clear canvas animate
     game.render(ctx);
