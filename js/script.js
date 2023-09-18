@@ -25,7 +25,15 @@ class Player {
   }
   draw(context) {
     context.fillRect(this.x, this.y, this.width, this.height);
-    context.drawImage(this.image, this.y, this.x);
+    context.drawImage(
+      this.image,
+      0,
+      0,
+      this.width,
+      this.height,
+      this.y,
+      this.x
+    );
   }
   update() {
     // horizontal movements
@@ -88,8 +96,14 @@ class Enemy {
     this.markedForDeletion = false;
   }
   draw(context) {
-    context.strokeRect(this.x, this.y, this.width, this.height);
-    context.drawImage(this.image, this.x, this.y);
+    // context.strokeRect(this.x, this.y, this.width, this.height);
+    context.drawImage(
+      this.image,
+      this.frameX * this.x,
+      this.frameY * this.y,
+      this.width,
+      this.height
+    );
   }
   update(x, y) {
     this.x = x + this.positionX;
@@ -97,16 +111,23 @@ class Enemy {
     // check collision enemies - projectiles
     this.game.projectilesPool.forEach((projectile) => {
       if (!projectile.free && this.game.checkCollision(this, projectile)) {
-        this.markedForDeletion = true;
+        this.hit(1);
         projectile.reset();
         if (!this.game.gameOver) this.game.score++;
       }
     });
+    if (this.lives < 1) {
+      this.frameX++;
+      if (this.frameX > this.maxFrame) {
+        this.markedForDeletion = true;
+        if (!this.game.gameOver) this.game.score += this.maxLives;
+      }
+    }
     // check collision enemies - player
     if (this.game.checkCollision(this, this.game.player)) {
       this.markedForDeletion = true;
       if (!this.game.gameOver && this.game.score > 0) this.game.score--;
-      this.game.lives--;
+      this.game.player.lives--;
       if (this.game.player.lives < 1) this.game.gameOver = true;
     }
     // lose condition
@@ -115,11 +136,19 @@ class Enemy {
       this.markedForDeletion = true;
     }
   }
+  hit(damage) {
+    this.lives -= damage;
+  }
 }
 class Beetlemorph extends Enemy {
   constructor(game, positionX, positionY) {
     super(game, positionX, positionY);
     this.image = document.getElementById("beetlemorph");
+    this.frameX = 0;
+    this.maxFrame = 2;
+    this.frameY = Math.floor(Math.random() * 4);
+    this.lives -= 1;
+    this.maxLives = this.lives;
   }
 }
 class Wave {
@@ -127,9 +156,9 @@ class Wave {
     this.game = game;
     this.width = this.game.columns * this.game.enemySize;
     this.height = this.game.rows * this.game.enemySize;
-    this.x = 0;
+    this.x = this.game.width * 0.5 - this.width;
     this.y = -this.height;
-    this.speedX = 3;
+    this.speedX = Math.random() < 0.5 ? -1 : 1;
     this.speedY = 0;
     this.enemies = [];
     this.nextWaveTrigger = false;
@@ -175,7 +204,7 @@ class Game {
 
     this.columns = 2;
     this.rows = 2;
-    this.enemySize = 60;
+    this.enemySize = 80;
 
     this.waves = [];
     this.waves.push(new Wave(this));
